@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>轨道计划正矢精算系统</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f4f5f7; margin: 0; padding-bottom: 40px; color: #333; }
+        .header { background: #fff; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 1px solid #eaeaea; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        .nav-tabs { display: flex; overflow-x: auto; background: #fff; border-bottom: 1px solid #eaeaea; padding: 0 10px; white-space: nowrap; }
+        .tab { padding: 12px 15px; font-size: 15px; color: #666; border-bottom: 2px solid transparent; cursor: pointer; }
+        .tab.active { color: #1a73e8; border-bottom-color: #1a73e8; font-weight: bold; }
+        .container { padding: 15px; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .card-header { padding: 15px; font-size: 16px; font-weight: bold; border-bottom: 1px solid #f0f0f0; color: #333; }
+        .card-body { padding: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; color: #555; margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 15px; box-sizing: border-box; background: #fafafa; -webkit-appearance: none; }
+        .form-control:focus { border-color: #1a73e8; outline: none; background: #fff; }
+        select.form-control { background-image: url('data:image/svg+xml;utf8,<svg fill="%23666" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>'); background-repeat: no-repeat; background-position-x: 98%; background-position-y: center; }
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 24px; width: 24px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #1a73e8; }
+        input:checked + .slider:before { transform: translateX(22px); }
+        .btn-primary { background: #1a73e8; color: #fff; border: none; width: 100%; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-outline { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; width: 100%; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .table-container { overflow-x: auto; margin-top: 20px; display: none; background: #fff; border-radius: 8px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; }
+        th, td { border: 1px solid #f0f0f0; padding: 12px 4px; white-space: nowrap; }
+        th { background-color: #f8f9fa; color: #333; font-weight: bold; border-bottom: 2px solid #eaeaea; }
+        .mark-text { color: #1a73e8; font-weight: bold; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="header"><span>三</span><span>计算工具</span><span style="color: #1a73e8;">我的</span></div>
+
+<div class="nav-tabs">
+    <div class="tab" onclick="switchTab('yh')">有缓曲线正矢</div>
+    <div class="tab active" onclick="switchTab('wh')">无缓曲线正矢</div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">参数设置</div>
+        <div class="card-body" id="form-container"></div>
+        <div style="padding: 0 15px 15px 15px;">
+            <button class="btn-primary" onclick="generateData()">开始计算</button>
+            <button class="btn-outline" onclick="copyTable()">导出 Excel (复制表格)</button>
+        </div>
+    </div>
+    
+    <div class="card table-container" id="result-container" style="padding: 0;">
+        <div class="card-header" style="border-bottom: none; padding-bottom: 5px;">计算结果</div>
+        <div id="table-wrap" style="padding: 0 15px 15px 15px; overflow-x: auto;"></div>
+    </div>
+</div>
+
+<script>
+const forms = {
+    yh: [
+        { id: 'layoutMethod', label: '布点方式', type: 'select', opts: [{t:'始端整桩法', v:'start'}, {t:'绝对里程整桩法', v:'abs'}] },
+        { id: 'subPeg', label: '计算条件', type: 'toggle', textLeft: '仅整桩计算', textRight: '带副桩计算' },
+        { id: 'spacing', label: '主桩间距: (m)', v: 20 },
+        { id: 'startM', label: '起点里程: (m)', v: 1 },
+        { id: 'totalL', label: '曲线全长: (m)', v: 300 },
+        { id: 'radius', label: '曲线半径: (m)', v: 3000 },
+        { id: 'superH', label: '曲线超高: (mm)', v: 30 },
+        { id: 'l1', label: '始端缓长: (m)', v: 30 },
+        { id: 'l2', label: '终端缓长: (m)', v: 33 }
+    ],
+    wh: [
+        { id: 'layoutMethod', label: '布点方式', type: 'select', opts: [{t:'始端整桩法', v:'start'}, {t:'绝对里程整桩法', v:'abs'}] },
+        { id: 'subPeg', label: '计算条件', type: 'toggle', textLeft: '仅整桩计算', textRight: '带副桩计算' },
+        { id: 'spacing', label: '主桩间距: (m)', v: 20 },
+        { id: 'startM', label: '起点里程: (m)', v: 1 },
+        { id: 'totalL', label: '曲线全长: (m)', v: 195 },
+        { id: 'radius', label: '曲线半径: (m)', v: 3000 },
+        { id: 'superH', label: '曲线超高: (mm)', v: 30 },
+        { id: 'gradient', label: '超高顺坡率: (‰)', v: 1 },
+        { id: 'gradType', label: '顺坡方式:', type: 'select', opts: [{t:'曲线内顺坡', v:'曲线内顺坡'}, {t:'直线内顺坡', v:'直线内顺坡'}, {t:'直曲平分顺坡', v:'直曲平分顺坡'}] }
+    ]
+};
+
+let currentTab = 'wh';
+
+function switchTab(tabId) {
+    currentTab = tabId;
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('result-container').style.display = 'none';
+
+    let html = '';
+    forms[tabId].forEach(f => {
+        if (f.type === 'toggle') {
+            html += `<div class="form-group" style="margin-bottom: 5px;"><label>${f.label}</label></div>
+                     <div class="toggle-row" style="margin-top: 0; padding-top:0;">
+                     <span style="font-size:12px; color:#999;">${f.textLeft}</span>
+                     <label class="switch"><input type="checkbox" id="in_${f.id}"><span class="slider"></span></label>
+                     <span style="font-size:12px; color:#999;">${f.textRight}</span></div>`;
+        } else if (f.type === 'select') {
+            let optsHtml = f.opts.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
+            html += `<div class="form-group"><label>${f.label}</label><select class="form-control" id="in_${f.id}">${optsHtml}</select></div>`;
+        } else {
+            html += `<div class="form-group"><label>${f.label}</label><input type="number" class="form-control" id="in_${f.id}" value="${f.v||''}"></div>`;
+        }
+    });
+    document.getElementById('form-container').innerHTML = html;
+}
+
+// 核心：微积分曲率积分引擎
+function calcVersineExact(R, l1, l2, totalL, pos, chordHalf) {
+    if (!R || R === 0) return 0;
+    const steps = 1000;
+    const dx = (2 * chordHalf) / steps;
+    let theta = 0, y = 0, y_mid = 0;
+
+    const getK = (s) => {
+        if (s <= 0) return 0;
+        if (l1 > 0 && s <= l1) return (s / l1) / R;
+        if (s <= totalL - l2) return 1 / R;
+        if (l2 > 0 && s <= totalL) return ((totalL - s) / l2) / R;
+        return 0;
+    };
+
+    for (let i = 0; i <= steps; i++) {
+        let globalS = pos - chordHalf + i * dx;
+        let k = getK(globalS);
+        theta += k * dx;
+        y += theta * dx;
+        if (i === steps / 2) y_mid = y;
+    }
+    
+    let y_end = y;
+    return ((y_end / 2) - y_mid) * 1000; 
+}
+
+// 有缓曲线超高计算
+function calcSuperElevYH(H, l1, l2, totalL, pos) {
+    if (!H || H === 0 || pos <= 0) return 0;
+    if (l1 > 0 && pos <= l1) return H * (pos / l1);
+    if (pos <= totalL - l2) return H;
+    if (l2 > 0 && pos <= totalL) return H * ((totalL - pos) / l2);
+    return 0;
+}
+
+// 无缓曲线带顺坡率超高计算
+function calcSuperElevWH(H, grad, gradType, totalL, pos) {
+    if (!H || H === 0) return 0;
+    let L_g = (grad > 0) ? (H / grad) : 0;
+    if (L_g === 0) return (pos >= 0 && pos <= totalL) ? H : 0;
+
+    let start0, startH, endH, end0;
+    if (gradType === '曲线内顺坡') {
+        start0 = 0; startH = L_g; endH = totalL - L_g; end0 = totalL;
+    } else if (gradType === '直线内顺坡') {
+        start0 = -L_g; startH = 0; endH = totalL; end0 = totalL + L_g;
+    } else { // 直曲平分
+        start0 = -L_g / 2; startH = L_g / 2; endH = totalL - L_g / 2; end0 = totalL + L_g / 2;
+    }
+
+    if (pos <= start0) return 0;
+    if (pos < startH) return H * ((pos - start0) / L_g);
+    if (pos <= endH) return H;
+    if (pos < end0) return H * ((end0 - pos) / L_g);
+    return 0;
+}
+
+function formatMileage(m) {
+    let km = Math.floor(m / 1000);
+    let meters = (m % 1000).toFixed(3).padStart(7, '0');
+    return `K${km}+${meters}`;
+}
+
+function generateData() {
+    let data = {};
+    forms[currentTab].forEach(f => {
+        let el = document.getElementById('in_'+f.id);
+        data[f.id] = f.type === 'toggle' ? el.checked : (f.type === 'select' ? el.value : parseFloat(el.value));
+    });
+
+    if(isNaN(data.startM) || isNaN(data.totalL) || isNaN(data.radius) || isNaN(data.spacing)) {
+        alert("请输入必填的核心参数！"); return;
+    }
+
+    let l1 = currentTab === 'yh' ? (data.l1 || 0) : 0;
+    let l2 = currentTab === 'yh' ? (data.l2 || 0) : 0;
+    let R = data.radius;
+    let totalL = data.totalL;
+    let chordHalf = data.spacing; 
+    let step = data.subPeg ? (chordHalf / 2) : chordHalf; 
+    
+    let startM = data.startM;
+    let endM = startM + totalL;
+    let method = data.layoutMethod;
+    
+    let calcPoints = new Set();
+    
+    // 扩展计算边界范围 (考虑拉弦跨度及顺坡影响)
+    let margin = chordHalf * 2;
+    if (currentTab === 'wh' && data.gradient > 0) margin = Math.max(margin, (data.superH / data.gradient) + chordHalf);
+    
+    const addPoint = (m) => calcPoints.add(parseFloat(m.toFixed(3)));
+
+    if (method === 'start') {
+        for (let m = startM; m >= startM - margin; m -= step) addPoint(m);
+        for (let m = startM; m <= endM + margin; m += step) addPoint(m);
+    } else {
+        let firstPeg = Math.floor((startM - margin) / step) * step;
+        let lastPeg = Math.ceil((endM + margin) / step) * step;
+        for (let m = firstPeg; m <= lastPeg; m += step) addPoint(m);
+    }
+
+    addPoint(startM);
+    addPoint(endM);
+    if (currentTab === 'yh') {
+        if (l1 > 0) addPoint(startM + l1);
+        if (l2 > 0) addPoint(endM - l2);
+    }
+
+    let sortedPoints = Array.from(calcPoints).sort((a, b) => a - b);
+    
+    let tableHtml = '<table><tr><th>桩号</th><th>里程</th><th>正矢</th><th>超高</th><th>特征</th></tr>';
+    let pegIndex = 0;
+
+    sortedPoints.forEach(currentMil => {
+        let s = currentMil - startM; 
+        let versine = calcVersineExact(R, l1, l2, totalL, s, chordHalf);
+        let superE = 0;
+        
+        if (currentTab === 'yh') {
+            superE = calcSuperElevYH(data.superH || 0, l1, l2, totalL, s);
+        } else {
+            superE = calcSuperElevWH(data.superH || 0, data.gradient || 0, data.gradType, totalL, s);
+        }
+        
+        let mark = "";
+        if (Math.abs(s) < 0.005) mark = currentTab === 'yh' ? "ZH" : "ZY";
+        else if (currentTab === 'yh' && l1 > 0 && Math.abs(s - l1) < 0.005) mark = "HY";
+        else if (currentTab === 'yh' && l2 > 0 && Math.abs(s - (totalL - l2)) < 0.005) mark = "YH";
+        else if (Math.abs(s - totalL) < 0.005) mark = currentTab === 'yh' ? "HZ" : "YZ";
+        
+        // 【核心修改】：过滤掉头尾正矢和超高均等于0的无效桩号，保留自然延伸数据
+        if (Math.abs(versine) < 0.005 && Math.abs(superE) < 0.005 && mark === "") return;
+
+        let pegId = pegIndex + "F";
+        pegIndex++;
+        
+        tableHtml += `<tr>
+            <td style="color:#666;">${pegId}</td>
+            <td style="color:#333;">${formatMileage(currentMil)}</td>
+            <td style="color:#333;">${versine.toFixed(2)}</td>
+            <td style="color:#333;">${superE.toFixed(2)}</td>
+            <td class="mark-text">${mark}</td>
+        </tr>`;
+    });
+
+    tableHtml += '</table>';
+    document.getElementById('table-wrap').innerHTML = tableHtml;
+    document.getElementById('result-container').style.display = 'block';
+}
+
+function copyTable() {
+    const table = document.getElementById('table-wrap');
+    if(!table || table.innerHTML === '') return alert("请先计算！");
+    const range = document.createRange();
+    range.selectNode(table);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    try {
+        document.execCommand('copy');
+        alert("表格已复制成功！可直接粘贴至 Excel/WPS");
+    } catch(err) {
+        alert("复制失败，请手动全选复制。");
+    }
+    selection.removeAllRanges();
+}
+
+// 默认打开无缓曲线页面
+window.onload = () => switchTab('wh');
+</script>
+</body>
+</html>
