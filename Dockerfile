@@ -1,4 +1,4 @@
-FROM python:3.10-alpine
+FROM python:3.10-slim
 WORKDIR /app
 # 将依赖文件复制进去并安装（这一步会利用你的虚拟内存）
 COPY requirements.txt .
