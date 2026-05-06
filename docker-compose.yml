@@ -4,5 +4,12 @@ services:
     build: .
     pull_policy: build
     ports:
-      - "8080:5000"  # 外部依然是 8080，映射到内部的 5000 端口
+      - "8080:5000"
+    volumes:
+      # 把容器里的 data 文件夹挂载出来，保证数据永久不丢失
+      - app_data:/app/data
     restart: always
+
+# 声明这是一个具名数据卷
+volumes:
+  app_data:
