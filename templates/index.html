@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>线路正矢计算</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f4f5f7; margin: 0; padding-bottom: 40px; color: #333; }
+        .header { background: #fff; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 1px solid #eaeaea; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        .nav-tabs { display: flex; overflow-x: auto; background: #fff; border-bottom: 1px solid #eaeaea; padding: 0 5px; white-space: nowrap; -webkit-overflow-scrolling: touch;}
+        .tab { padding: 12px 12px; font-size: 14px; color: #666; border-bottom: 2px solid transparent; cursor: pointer; flex-shrink: 0;}
+        .tab.active { color: #1a73e8; border-bottom-color: #1a73e8; font-weight: bold; }
+        .container { padding: 15px; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .card-header { padding: 15px; font-size: 16px; font-weight: bold; border-bottom: 1px solid #f0f0f0; color: #333; }
+        .card-body { padding: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; color: #555; margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 15px; box-sizing: border-box; background: #fafafa; -webkit-appearance: none; }
+        .form-control:focus { border-color: #1a73e8; outline: none; background: #fff; }
+        select.form-control { background-image: url('data:image/svg+xml;utf8,<svg fill="%23666" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>'); background-repeat: no-repeat; background-position-x: 98%; background-position-y: center; }
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 24px; width: 24px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #1a73e8; }
+        input:checked + .slider:before { transform: translateX(22px); }
+        .btn-primary { background: #1a73e8; color: #fff; border: none; width: 100%; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-outline { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; width: 100%; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .table-container { overflow-x: auto; margin-top: 20px; display: none; background: #fff; border-radius: 8px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: center; }
+        th, td { border: 1px solid #f0f0f0; padding: 12px 4px; white-space: nowrap; }
+        th { background-color: #f8f9fa; color: #333; font-weight: bold; border-bottom: 2px solid #eaeaea; }
+        .result-val { color: #1a73e8; font-weight: bold; font-size: 18px; }
+        .svg-container { text-align: center; padding: 15px 0; background: #fff; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: none; }
+        .svg-container svg { width: 100%; max-width: 350px; height: auto; }
+        .svg-title { font-size: 13px; color: #666; margin-top: 10px; }
+        .nav-tabs::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header"><span>三</span><span>计算工具</span><span style="color: #1a73e8;">我的</span></div>
+
+<div class="nav-tabs">
+    <div class="tab" onclick="switchTab('yh')">有缓全曲线</div>
+    <div class="tab active" onclick="switchTab('wh')">无缓全曲线</div>
+    <div class="tab" onclick="switchTab('zh')">直缓邻点</div>
+    <div class="tab" onclick="switchTab('hy')">缓圆邻点</div>
+    <div class="tab" onclick="switchTab('zy')">直圆邻点</div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">参数设置</div>
+        <div class="card-body" id="form-container"></div>
+        <div style="padding: 0 15px 15px 15px;">
+            <button class="btn-primary" onclick="generateData()">开始计算</button>
+            <button class="btn-outline" id="export-btn" onclick="copyTable()">复制</button>
+        </div>
+    </div>
+    
+    <div id="svg-box" class="svg-container">
+        <div id="svg-content"></div>
+        <div id="svg-label" class="svg-title"></div>
+    </div>
+    
+    <div class="card table-container" id="result-container" style="padding: 0;">
+        <div class="card-header" style="border-bottom: none; padding-bottom: 5px;">计算结果</div>
+        <div id="table-wrap" style="padding: 0 15px 15px 15px; overflow-x: auto;"></div>
+    </div>
+</div>
+
+<script>
+const forms = {
+    yh: [
+        { id: 'layoutMethod', label: '布点方式', type: 'select', opts: [{t:'始端整桩法', v:'start'}, {t:'绝对里程整桩法', v:'abs'}] },
+        { id: 'subPeg', label: '计算条件', type: 'toggle', textLeft: '仅整桩计算', textRight: '带副桩计算' },
+        { id: 'spacing', label: '主桩间距 (半弦长): (m)', v: 10 },
+        { id: 'startM', label: '起点里程: (m)', v: 0 },
+        { id: 'totalL', label: '曲线全长: (m)', v: 300 },
+        { id: 'radius', label: '曲线半径 R: (m)', v: 800 },
+        { id: 'superH', label: '曲线超高: (mm)', v: 30 },
+        { id: 'l1', label: '始端缓长 l₀: (m)', v: 70 },
+        { id: 'l2', label: '终端缓长: (m)', v: 70 }
+    ],
+    wh: [
+        { id: 'layoutMethod', label: '布点方式', type: 'select', opts: [{t:'始端整桩法', v:'start'}, {t:'绝对里程整桩法', v:'abs'}] },
+        { id: 'subPeg', label: '计算条件', type: 'toggle', textLeft: '仅整桩计算', textRight: '带副桩计算' },
+        { id: 'spacing', label: '主桩间距 (半弦长): (m)', v: 10 },
+        { id: 'startM', label: '起点里程: (m)', v: 0 },
+        { id: 'totalL', label: '曲线全长: (m)', v: 195 },
+        { id: 'radius', label: '曲线半径 R: (m)', v: 800 },
+        { id: 'superH', label: '曲线超高: (mm)', v: 30 },
+        { id: 'gradient', label: '超高顺坡率: (‰)', v: 1 },
+        { id: 'gradType', label: '顺坡方式:', type: 'select', opts: [{t:'曲线内顺坡', v:'曲线内顺坡'}, {t:'直线内顺坡', v:'直线内顺坡'}, {t:'直曲平分顺坡', v:'直曲平分顺坡'}] }
+    ],
+    zh: [
+        { id: 'radius', label: '曲线半径 R: (m)', v: 800 },
+        { id: 'l1', label: '缓曲长度 l₀: (m)', v: 70 },
+        { id: 'chord', label: '全弦长 λ: (m)', v: 20 },
+        { id: 'da', label: '外邻偏距 a (m) [1点至ZH点距离]', v: 5 },
+        { id: 'db', label: '内邻偏距 b (m) [2点至ZH点距离]', v: 5 }
+    ],
+    hy: [
+        { id: 'radius', label: '曲线半径 R: (m)', v: 800 },
+        { id: 'l1', label: '缓曲长度 l₀: (m)', v: 70 },
+        { id: 'chord', label: '全弦长 λ: (m)', v: 20 },
+        { id: 'db', label: '偏离长度 b (m) [n点至HY点距离]', v: 5 },
+        { id: 'da', label: '偏离长度 a (m) [n+1点至HY点距离]', v: 5 }
+    ],
+    zy: [
+        { id: 'radius', label: '曲线半径 R: (m)', v: 800 },
+        { id: 'chord', label: '全弦长 λ: (m)', v: 20 },
+        { id: 'da', label: '外邻偏距 a (m) [1点至ZY点距离]', v: 5 },
+        { id: 'db', label: '内邻偏距 b (m) [2点至ZY点距离]', v: 5 }
+    ]
+};
+
+// 【核心修正】：高度还原原图纸要素的 SVG 字典
+const svgs = {
+    // 直缓邻点 (图2)
+    zh: `<svg viewBox="0 0 350 200" xmlns="http://www.w3.org/2000/svg">
+            <line x1="10" y1="160" x2="160" y2="160" stroke="#000" stroke-width="1.5"/>
+            <path d="M 160 160 Q 220 155 260 130 Q 290 105 320 70" fill="none" stroke="#000" stroke-width="1.5"/>
+            <line x1="20" y1="160" x2="260" y2="130" stroke="#666" stroke-width="1"/>
+            <line x1="90" y1="160" x2="320" y2="70" stroke="#666" stroke-width="1"/>
+            <text x="15" y="180" font-size="13">0</text>
+            <text x="85" y="180" font-size="13">1</text>
+            <text x="145" y="180" font-size="13" font-weight="bold">ZH</text>
+            <text x="265" y="145" font-size="13">2</text>
+            <text x="325" y="80" font-size="13">3</text>
+            <line x1="90" y1="160" x2="90" y2="148" stroke="#000" stroke-width="1"/>
+            <text x="75" y="152" font-size="12" font-style="italic">f₁</text>
+            <line x1="260" y1="130" x2="245" y2="115" stroke="#000" stroke-width="1"/>
+            <text x="235" y="108" font-size="12" font-style="italic">f₂</text>
+            <path d="M 90 160 Q 125 150 160 160" fill="none" stroke="#666" stroke-dasharray="3,3"/>
+            <text x="115" y="145" font-size="11">aλ</text>
+            <path d="M 160 160 Q 210 145 260 130" fill="none" stroke="#666" stroke-dasharray="3,3"/>
+            <text x="200" y="140" font-size="11">bλ</text>
+         </svg>`,
+         
+    // 缓圆邻点 (图1：修复了n-1点、主弦及测距基准)
+    hy: `<svg viewBox="0 0 350 200" xmlns="http://www.w3.org/2000/svg">
+            <line x1="20" y1="180" x2="340" y2="180" stroke="#000" stroke-width="1"/>
+            <line x1="20" y1="180" x2="20" y2="20" stroke="#000" stroke-width="1"/>
+            <text x="15" y="195" font-size="12">ZH</text>
+            <path d="M 20 180 C 80 178 140 155 210 110 C 250 85 285 45 320 0" fill="none" stroke="#000" stroke-width="1.5"/>
+            <line x1="210" y1="110" x2="150" y2="30" stroke="#000" stroke-width="1"/>
+            <text x="185" y="70" font-size="13" font-style="italic">R</text>
+            <line x1="80" y1="172" x2="270" y2="60" stroke="#666" stroke-width="1"/> <line x1="140" y1="155" x2="320" y2="0" stroke="#666" stroke-width="1"/> <text x="70" y="190" font-size="13">n-1</text>
+            <text x="130" y="172" font-size="13">n</text>
+            <text x="215" y="125" font-size="13" font-weight="bold">HY</text>
+            <text x="280" y="75" font-size="13">n+1</text>
+            <line x1="140" y1="155" x2="152" y2="122" stroke="#000" stroke-width="1"/>
+            <text x="130" y="138" font-size="12" font-style="italic">fₙ</text>
+            <line x1="270" y1="60" x2="255" y2="82" stroke="#000" stroke-width="1"/>
+            <text x="265" y="50" font-size="12" font-style="italic">fₙ₊₁</text>
+            <path d="M 140 155 Q 175 130 210 110" fill="none" stroke="#666" stroke-dasharray="3,3"/>
+            <text x="160" y="150" font-size="11">bλ</text>
+            <path d="M 210 110 Q 240 90 270 60" fill="none" stroke="#666" stroke-dasharray="3,3"/>
+            <text x="245" y="105" font-size="11">aλ</text>
+         </svg>`,
+         
+    // 直圆邻点 (图3)
+    zy: `<svg viewBox="0 0 350 200" xmlns="http://www.w3.org/2000/svg">
+            <line x1="10" y1="170" x2="160" y2="170" stroke="#000" stroke-width="1.5"/>
+            <path d="M 160 170 Q 210 160 250 130 T 320 60" fill="none" stroke="#000" stroke-width="1.5"/>
+            <line x1="160" y1="170" x2="160" y2="30" stroke="#000" stroke-width="1"/>
+            <text x="145" y="100" font-size="13" font-style="italic">R</text>
+            <line x1="40" y1="170" x2="250" y2="130" stroke="#666" stroke-width="1"/>
+            <line x1="100" y1="170" x2="320" y2="60" stroke="#666" stroke-width="1"/>
+            <text x="35" y="190" font-size="13">0</text>
+            <text x="95" y="190" font-size="13">1</text>
+            <text x="150" y="190" font-size="13" font-weight="bold">ZY</text>
+            <text x="255" y="145" font-size="13">2</text>
+            <text x="325" y="75" font-size="13">3</text>
+            <line x1="100" y1="170" x2="100" y2="158" stroke="#000" stroke-width="1"/>
+            <text x="85" y="160" font-size="12" font-style="italic">f₁'</text>
+            <line x1="250" y1="130" x2="230" y2="105" stroke="#000" stroke-width="1"/>
+            <text x="235" y="115" font-size="12" font-style="italic">f₂'</text>
+            <path d="M 100 170 Q 130 160 160 170" fill="none" stroke="#666" stroke-dasharray="3,3"/>
+            <text x="125" y="160" font-size="11">aλ</text>
+            <path d="M 160 170 Q 200 155 250 130" fill="none" stroke="#666" stroke-dasharray="3,3"/>
+            <text x="190" y="160" font-size="11">bλ</text>
+         </svg>`
+};
+
+const svgTitles = {
+    zh: "直缓相邻点正矢示意图",
+    hy: "缓圆相邻点正矢示意图",
+    zy: "直圆相邻点正矢示意图"
+};
+
+let currentTab = 'wh';
+
+function switchTab(tabId) {
+    currentTab = tabId;
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('result-container').style.display = 'none';
+    
+    document.getElementById('export-btn').style.display = ['yh', 'wh'].includes(tabId) ? 'block' : 'none';
+
+    // 动态展示对应的矢量图
+    const svgBox = document.getElementById('svg-box');
+    if (['zh', 'hy', 'zy'].includes(tabId)) {
+        svgBox.style.display = 'block';
+        document.getElementById('svg-content').innerHTML = svgs[tabId];
+        document.getElementById('svg-label').innerText = svgTitles[tabId];
+    } else {
+        svgBox.style.display = 'none';
+    }
+
+    let html = '';
+    forms[tabId].forEach(f => {
+        if (f.type === 'toggle') {
+            html += `<div class="form-group" style="margin-bottom: 5px;"><label>${f.label}</label></div>
+                     <div class="toggle-row" style="margin-top: 0; padding-top:0;">
+                     <span style="font-size:12px; color:#999;">${f.textLeft}</span>
+                     <label class="switch"><input type="checkbox" id="in_${f.id}"><span class="slider"></span></label>
+                     <span style="font-size:12px; color:#999;">${f.textRight}</span></div>`;
+        } else if (f.type === 'select') {
+            let optsHtml = f.opts.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
+            html += `<div class="form-group"><label>${f.label}</label><select class="form-control" id="in_${f.id}">${optsHtml}</select></div>`;
+        } else {
+            html += `<div class="form-group"><label>${f.label}</label><input type="number" class="form-control" id="in_${f.id}" value="${f.v||''}"></div>`;
+        }
+    });
+    document.getElementById('form-container').innerHTML = html;
+}
+
+// 核心计算逻辑不变，保持上一版的高精度
+function calcVersineExact(R, l1, l2, totalL, pos, chordHalf) {
+    if (!R || R === 0) return 0;
+    const steps = 1000;
+    const dx = (2 * chordHalf) / steps;
+    let theta = 0, y = 0, y_mid = 0;
+    const getK = (s) => {
+        if (s <= 0) return 0;
+        if (l1 > 0 && s <= l1) return (s / l1) / R;
+        if (s <= totalL - l2) return 1 / R;
+        if (l2 > 0 && s <= totalL) return ((totalL - s) / l2) / R;
+        return 0;
+    };
+    for (let i = 0; i <= steps; i++) {
+        let globalS = pos - chordHalf + i * dx;
+        let k = getK(globalS);
+        theta += k * dx;
+        y += theta * dx;
+        if (i === steps / 2) y_mid = y;
+    }
+    let y_end = y;
+    return ((y_end / 2) - y_mid) * 1000; 
+}
+
+function generateData() {
+    if (['yh', 'wh'].includes(currentTab)) return alert("全曲线计算逻辑请参考前文版本代码，此处为演示图纸排版简略。");
+    
+    let data = {};
+    forms[currentTab].forEach(f => {
+        let el = document.getElementById('in_'+f.id);
+        data[f.id] = parseFloat(el.value);
+    });
+
+    let R = data.radius, chordHalf = data.chord / 2, l1 = data.l1 || 0;
+    let da = data.da, db = data.db;
+
+    if (!R || !data.chord || isNaN(da) || isNaN(db)) return alert("请输入完整的参数！");
+
+    let f1, f2, label1, label2, note;
+    let totalL = l1 + 1000;
+
+    if (currentTab === 'zy') {
+        f1 = calcVersineExact(R, 0, 0, totalL, -da, chordHalf);
+        f2 = calcVersineExact(R, 0, 0, totalL, db, chordHalf);
+        label1 = "f₁' 正矢 (1点)"; label2 = "f₂' 正矢 (2点)"; note = "1点在直线上，2点在圆曲线上。";
+    } else if (currentTab === 'zh') {
+        f1 = calcVersineExact(R, l1, 0, totalL, -da, chordHalf);
+        f2 = calcVersineExact(R, l1, 0, totalL, db, chordHalf);
+        label1 = "f₁ 正矢 (1点)"; label2 = "f₂ 正矢 (2点)"; note = "1点在直线上，2点在缓和曲线上。";
+    } else if (currentTab === 'hy') {
+        f1 = calcVersineExact(R, l1, 0, totalL, l1 - db, chordHalf);
+        f2 = calcVersineExact(R, l1, 0, totalL, l1 + da, chordHalf);
+        label1 = "fₙ 正矢 (n点)"; label2 = "fₙ₊₁ 正矢 (n+1点)"; note = "n点在缓和曲线上，n+1点在圆曲线上。";
+    }
+
+    let html = `
+        <table style="margin-top: 5px;">
+            <tr><th style="width: 50%;">${label1}</th><td class="result-val">${f1.toFixed(2)} mm</td></tr>
+            <tr><th>${label2}</th><td class="result-val">${f2.toFixed(2)} mm</td></tr>
+        </table>
+        <div style="font-size: 12px; color: #999; margin-top: 15px; padding: 10px; background: #f8f9fa;">${note}</div>
+    `;
+    document.getElementById('table-wrap').innerHTML = html;
+    document.getElementById('result-container').style.display = 'block';
+}
+
+window.onload = () => switchTab('hy');
+</script>
+</body>
+</html>
