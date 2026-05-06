@@ -6,5 +6,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 把所有代码复制进去
 COPY . .
 # 运行后端程序
-ENV FORCE_UPDATE=12345
 CMD ["python", "app.py"]
