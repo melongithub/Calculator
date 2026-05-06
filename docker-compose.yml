@@ -3,7 +3,7 @@ services:
   my-web-app:
     image: nginx:alpine
     ports:
-      - "8080:80"  # 外部通过 8080 端口访问，容器内部是 80 端口
+      - "8888:80"  # 外部通过 8080 端口访问，容器内部是 80 端口
     volumes:
       - ./:/usr/share/nginx/html  # 将当前仓库的所有文件映射到 Nginx 的网页目录
     restart: always
