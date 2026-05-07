@@ -1,0 +1,19 @@
+name: Auto Sync to Gitee
+on:
+  push:
+    branches: [ main ] # 只要 main 分支有代码更新，就触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Push to Gitee
+      run: |
+        # 请把下面两处的 melongithub 替换成你注册 Gitee 时的个人空间地址名
+        git remote add gitee https://melongithub:${{ secrets.GITEE_TOKEN }}@gitee.com/melongithub/Calculator.git
+        git push -f gitee main
