@@ -41,7 +41,16 @@
 </head>
 <body>
 
-<div class="header"><span>三</span><span>计算工具</span><span style="color: #1a73e8;">我的</span></div>
+<div class="header">
+    <span style="font-size: 14px; color: #666;">👷‍♂️ 欢迎, {{ session.get('username') }}</span>
+    <span>线路正矢计算</span>
+    <div style="font-size: 14px; font-weight: normal;">
+        {% if session.get('username') == 'admin' %}
+            <a href="/admin" style="color: #6c757d; text-decoration: none; margin-right: 10px;">⚙️后台</a>
+        {% endif %}
+        <a href="/logout" style="color: #dc3545; text-decoration: none;">退出</a>
+    </div>
+</div>
 
 <div class="nav-tabs">
     <div class="tab" onclick="switchTab('yh')">有缓全曲线</div>
