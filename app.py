@@ -70,8 +70,13 @@ def calculator():
 # 3. 后台管理页面 (新增账号、修改密码、删除账号)
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    # 1. 检查有没有登录
     if not session.get('logged_in'):
         return redirect(url_for('login'))
+        
+    # 2. 【核心安全更新】检查是不是真正的管理员 admin
+    if session.get('username') != 'admin':
+        return "<h1>❌ 权限不足！</h1><p>只有超级管理员 [admin] 才能进入系统后台。</p><a href='/calculator'>点击这里返回计算器</a>", 403
         
     db = get_db()
     message = ""
